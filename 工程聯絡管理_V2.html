@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程聯絡管理</title>
+<style>
+  :root{
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --primary:#111827;
+    --accent:#2563eb;
+    --danger:#dc2626;
+    --success:#059669;
+    --warning:#d97706;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .wrap{max-width:1180px;margin:auto;padding:28px 16px 60px}
+  .top{
+    display:flex;justify-content:space-between;gap:16px;align-items:flex-end;
+    margin-bottom:22px;flex-wrap:wrap;
+  }
+  h1{margin:0;font-size:28px}
+  .sub{margin-top:7px;color:var(--muted);font-size:14px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 8px 30px rgba(0,0,0,.04);padding:20px;margin-bottom:18px;
+  }
+  .summary{
+    display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px;
+  }
+  .summary .box{
+    background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;
+  }
+  .summary .label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .summary .value{font-size:22px;font-weight:800}
+  .grid{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;
+  }
+  .field.full{grid-column:1/-1}
+  label{display:block;font-size:14px;font-weight:700;margin-bottom:7px}
+  input,textarea,select{
+    width:100%;border:1px solid #d1d5db;border-radius:12px;padding:12px 13px;
+    font-size:16px;outline:none;background:#fff;color:var(--text);
+  }
+  input:focus,textarea:focus,select:focus{
+    border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12);
+  }
+  textarea{min-height:90px;resize:vertical}
+  .actions{
+    display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;
+  }
+  button,a.button{
+    border:0;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;
+    font-size:15px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .btn-primary{background:var(--primary);color:white}
+  .btn-light{background:#eef2f7;color:#111827}
+  .btn-export{background:#e8f5ee;color:#047857}
+  .btn-danger{background:#fee2e2;color:#b91c1c}
+  .btn-call{background:#e0f2fe;color:#0369a1}
+  .toolbar{
+    display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .toolbar input{max-width:330px}
+  .count{font-size:14px;color:var(--muted)}
+  .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+  table{border-collapse:collapse;width:100%;min-width:1180px;background:#fff}
+  th,td{padding:13px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  th{background:#f9fafb;font-size:13px;color:#4b5563;position:sticky;top:0}
+  tr:last-child td{border-bottom:0}
+  .money{font-weight:800}
+  .mini{padding:7px 10px;border-radius:9px;font-size:13px;margin:2px 4px 2px 0}
+  .empty{text-align:center;padding:34px;color:var(--muted)}
+  .badge{
+    display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;
+  }
+  .status-wait{background:#fef3c7;color:#92400e}
+  .status-booked{background:#dbeafe;color:#1d4ed8}
+  .status-working{background:#ede9fe;color:#6d28d9}
+  .status-done{background:#d1fae5;color:#047857}
+  .pay-unpaid{background:#fee2e2;color:#b91c1c}
+  .pay-deposit{background:#fef3c7;color:#92400e}
+  .pay-paid{background:#d1fae5;color:#047857}
+  .muted{color:var(--muted)}
+  @media(max-width:800px){
+    .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid{grid-template-columns:1fr}
+    .field.full{grid-column:auto}
+    h1{font-size:24px}
+    .card{padding:16px;border-radius:15px}
+    .wrap{padding-top:20px}
+    .actions button{flex:1}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>工程聯絡管理</h1>
+      <div class="sub">客戶、預約、工程進度、收款狀態一次管理</div>
+    </div>
+    <span class="badge status-booked">資料儲存在此瀏覽器</span>
+  </div>
+
+  <div class="summary">
+    <div class="box">
+      <div class="label">總工程數</div>
+      <div class="value" id="sumTotal">0</div>
+    </div>
+    <div class="box">
+      <div class="label">施工中</div>
+      <div class="value" id="sumWorking">0</div>
+    </div>
+    <div class="box">
+      <div class="label">已完成</div>
+      <div class="value" id="sumDone">0</div>
+    </div>
+    <div class="box">
+      <div class="label">未收款金額</div>
+      <div class="value" id="sumUnpaid">NT$ 0</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <form id="projectForm">
+      <input type="hidden" id="editId">
+      <div class="grid">
+        <div class="field">
+          <label for="customerName">客戶名字 *</label>
+          <input id="customerName" required placeholder="例如：王先生">
+        </div>
+        <div class="field">
+          <label for="contact">聯絡方式 *</label>
+          <input id="contact" required placeholder="電話 / LINE / Email">
+        </div>
+
+        <div class="field">
+          <label for="company">公司名稱</label>
+          <input id="company" placeholder="例如：XX工程有限公司">
+        </div>
+        <div class="field">
+          <label for="address">工程地址</label>
+          <input id="address" placeholder="例如：高雄市楠梓區...">
+        </div>
+
+        <div class="field">
+          <label for="item">品項 *</label>
+          <input id="item" required placeholder="例如：冷氣安裝、水電維修、泥作">
+        </div>
+        <div class="field">
+          <label for="amount">金額</label>
+          <input id="amount" inputmode="numeric" type="number" min="0" step="1" placeholder="例如：15000">
+        </div>
+
+        <div class="field">
+          <label for="appointment">預約時間 *</label>
+          <input id="appointment" required type="datetime-local">
+        </div>
+        <div class="field">
+          <label for="projectStatus">工程狀態</label>
+          <select id="projectStatus">
+            <option value="待聯絡">待聯絡</option>
+            <option value="已預約">已預約</option>
+            <option value="施工中">施工中</option>
+            <option value="已完成">已完成</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="paymentStatus">收款狀態</label>
+          <select id="paymentStatus">
+            <option value="未收款">未收款</option>
+            <option value="已收訂金">已收訂金</option>
+            <option value="已付清">已付清</option>
+          </select>
+        </div>
+
+        <div class="field full">
+          <label for="note">備註</label>
+          <textarea id="note" placeholder="工程需求、訂金金額、注意事項、付款方式等"></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" type="submit" id="saveBtn">＋ 新增資料</button>
+        <button class="btn-light" type="button" id="resetBtn">清除欄位</button>
+        <button class="btn-export" type="button" id="exportBtn">匯出 CSV</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <div>
+        <strong>客戶 / 工程列表</strong>
+        <div class="count" id="countText">共 0 筆</div>
+      </div>
+      <input id="searchInput" placeholder="搜尋姓名、公司、品項、電話、地址">
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>客戶</th>
+            <th>聯絡方式</th>
+            <th>公司</th>
+            <th>地址</th>
+            <th>品項</th>
+            <th>金額</th>
+            <th>預約時間</th>
+            <th>工程狀態</th>
+            <th>收款狀態</th>
+            <th>備註</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty" id="emptyState">目前還沒有資料，先新增第一筆工程資料吧。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "engineering_contacts_v2";
+let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const $ = id => document.getElementById(id);
+const form = $("projectForm");
+
+function saveLocal(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+function formatMoney(v){
+  if(v === "" || v === null || v === undefined) return "-";
+  return "NT$ " + Number(v).toLocaleString("zh-TW");
+}
+function formatDate(v){
+  if(!v) return "-";
+  const d = new Date(v);
+  if(Number.isNaN(d.getTime())) return v;
+  return new Intl.DateTimeFormat("zh-TW",{
+    year:"numeric",month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hour12:false
+  }).format(d);
+}
+function esc(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;");
+}
+function statusClass(v){
+  return {
+    "待聯絡":"status-wait",
+    "已預約":"status-booked",
+    "施工中":"status-working",
+    "已完成":"status-done"
+  }[v] || "status-booked";
+}
+function payClass(v){
+  return {
+    "未收款":"pay-unpaid",
+    "已收訂金":"pay-deposit",
+    "已付清":"pay-paid"
+  }[v] || "pay-unpaid";
+}
+function phoneHref(contact){
+  const cleaned = String(contact || "").replace(/[^\d+]/g,"");
+  return cleaned ? `tel:${cleaned}` : "";
+}
+function renderSummary(){
+  $("sumTotal").textContent = records.length;
+  $("sumWorking").textContent = records.filter(r => r.projectStatus === "施工中").length;
+  $("sumDone").textContent = records.filter(r => r.projectStatus === "已完成").length;
+  const unpaid = records
+    .filter(r => r.paymentStatus !== "已付清")
+    .reduce((sum,r) => sum + (Number(r.amount) || 0), 0);
+  $("sumUnpaid").textContent = "NT$ " + unpaid.toLocaleString("zh-TW");
+}
+function render(){
+  const q = $("searchInput").value.trim().toLowerCase();
+  const filtered = records.filter(r =>
+    [r.customerName,r.contact,r.company,r.address,r.item,r.note,r.projectStatus,r.paymentStatus]
+      .join(" ").toLowerCase().includes(q)
+  );
+
+  $("countText").textContent = `共 ${records.length} 筆`;
+  $("emptyState").style.display = filtered.length ? "none" : "block";
+
+  $("tableBody").innerHTML = filtered.map(r => {
+    const tel = phoneHref(r.contact);
+    return `
+      <tr>
+        <td><strong>${esc(r.customerName)}</strong></td>
+        <td>
+          ${esc(r.contact)}
+          ${tel ? `<div><a class="button mini btn-call" href="${tel}">撥電話</a></div>` : ""}
+        </td>
+        <td>${esc(r.company || "-")}</td>
+        <td>${esc(r.address || "-")}</td>
+        <td>${esc(r.item)}</td>
+        <td class="money">${formatMoney(r.amount)}</td>
+        <td>${formatDate(r.appointment)}</td>
+        <td><span class="badge ${statusClass(r.projectStatus)}">${esc(r.projectStatus)}</span></td>
+        <td><span class="badge ${payClass(r.paymentStatus)}">${esc(r.paymentStatus)}</span></td>
+        <td>${esc(r.note || "-")}</td>
+        <td>
+          <button class="mini btn-light" onclick="editRecord('${r.id}')">編輯</button>
+          <button class="mini btn-danger" onclick="deleteRecord('${r.id}')">刪除</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  renderSummary();
+}
+function resetForm(){
+  form.reset();
+  $("editId").value = "";
+  $("projectStatus").value = "待聯絡";
+  $("paymentStatus").value = "未收款";
+  $("saveBtn").textContent = "＋ 新增資料";
+}
+form.addEventListener("submit", e => {
+  e.preventDefault();
+
+  const id = $("editId").value;
+  const data = {
+    id: id || (Date.now().toString(36)+Math.random().toString(36).slice(2)),
+    customerName: $("customerName").value.trim(),
+    contact: $("contact").value.trim(),
+    company: $("company").value.trim(),
+    address: $("address").value.trim(),
+    item: $("item").value.trim(),
+    amount: $("amount").value,
+    appointment: $("appointment").value,
+    projectStatus: $("projectStatus").value,
+    paymentStatus: $("paymentStatus").value,
+    note: $("note").value.trim()
+  };
+
+  if(id){
+    records = records.map(r => r.id === id ? data : r);
+  } else {
+    records.unshift(data);
+  }
+
+  saveLocal();
+  resetForm();
+  render();
+});
+window.editRecord = id => {
+  const r = records.find(x => x.id === id);
+  if(!r) return;
+
+  $("editId").value = r.id;
+  $("customerName").value = r.customerName;
+  $("contact").value = r.contact;
+  $("company").value = r.company || "";
+  $("address").value = r.address || "";
+  $("item").value = r.item;
+  $("amount").value = r.amount || "";
+  $("appointment").value = r.appointment;
+  $("projectStatus").value = r.projectStatus || "待聯絡";
+  $("paymentStatus").value = r.paymentStatus || "未收款";
+  $("note").value = r.note || "";
+  $("saveBtn").textContent = "儲存修改";
+
+  window.scrollTo({top:0,behavior:"smooth"});
+};
+window.deleteRecord = id => {
+  if(!confirm("確定要刪除這筆資料嗎？")) return;
+
+  records = records.filter(r => r.id !== id);
+  saveLocal();
+  render();
+};
+$("resetBtn").addEventListener("click", resetForm);
+$("searchInput").addEventListener("input", render);
+
+$("exportBtn").addEventListener("click", () => {
+  if(!records.length){
+    alert("目前沒有資料可以匯出。");
+    return;
+  }
+
+  const headers = [
+    "客戶名字","聯絡方式","公司名稱","工程地址","品項","金額",
+    "預約時間","工程狀態","收款狀態","備註"
+  ];
+
+  const rows = records.map(r => [
+    r.customerName,r.contact,r.company,r.address,r.item,r.amount,
+    r.appointment,r.projectStatus,r.paymentStatus,r.note
+  ]);
+
+  const csv = "\uFEFF" + [headers,...rows]
+    .map(row => row.map(v => `"${String(v ?? "").replaceAll('"','""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "工程聯絡資料.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+render();
+</script>
+</body>
+</html>
