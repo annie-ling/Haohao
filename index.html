@@ -75,7 +75,7 @@
   .toolbar input{max-width:330px}
   .count{font-size:14px;color:var(--muted)}
   .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
-  table{border-collapse:collapse;width:100%;min-width:1180px;background:#fff}
+  table{border-collapse:collapse;width:100%;min-width:1240px;background:#fff}
   th,td{padding:13px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
   th{background:#f9fafb;font-size:13px;color:#4b5563;position:sticky;top:0}
   tr:last-child td{border-bottom:0}
@@ -104,11 +104,13 @@
   }
 </style>
 
-<link rel="icon" type="image/png" sizes="512x512" href="./icon_new.png?v=2">
-<link rel="shortcut icon" href="./icon_new.png?v=2">
-<link rel="apple-touch-icon" sizes="512x512" href="./icon_new.png?v=2">
-<meta name="apple-mobile-web-app-title" content="Hao 工程">
 <meta name="theme-color" content="#6f6257">
+
+
+<link rel="icon" type="image/png" sizes="512x512" href="./icon.png?v=3">
+<link rel="shortcut icon" href="./icon.png?v=3">
+<link rel="apple-touch-icon" sizes="512x512" href="./icon.png?v=3">
+<meta name="apple-mobile-web-app-title" content="工程聯絡管理">
 
 </head>
 <body>
@@ -165,6 +167,10 @@
         <div class="field">
           <label for="item">品項 *</label>
           <input id="item" required placeholder="例如：冷氣安裝、水電維修、泥作">
+        </div>
+        <div class="field">
+          <label for="quantity">數量</label>
+          <input id="quantity" inputmode="numeric" type="number" min="1" step="1" value="1" placeholder="例如：2">
         </div>
         <div class="field">
           <label for="amount">金額</label>
@@ -226,6 +232,7 @@
             <th>公司</th>
             <th>地址</th>
             <th>品項</th>
+            <th>數量</th>
             <th>金額</th>
             <th>預約時間</th>
             <th>工程狀態</th>
@@ -300,7 +307,7 @@ function renderSummary(){
 function render(){
   const q = $("searchInput").value.trim().toLowerCase();
   const filtered = records.filter(r =>
-    [r.customerName,r.contact,r.company,r.address,r.item,r.note,r.projectStatus,r.paymentStatus]
+    [r.customerName,r.contact,r.company,r.address,r.item,r.quantity,r.note,r.projectStatus,r.paymentStatus]
       .join(" ").toLowerCase().includes(q)
   );
 
@@ -319,6 +326,7 @@ function render(){
         <td>${esc(r.company || "-")}</td>
         <td>${esc(r.address || "-")}</td>
         <td>${esc(r.item)}</td>
+        <td>${esc(r.quantity || "1")}</td>
         <td class="money">${formatMoney(r.amount)}</td>
         <td>${formatDate(r.appointment)}</td>
         <td><span class="badge ${statusClass(r.projectStatus)}">${esc(r.projectStatus)}</span></td>
@@ -339,6 +347,7 @@ function resetForm(){
   $("editId").value = "";
   $("projectStatus").value = "待聯絡";
   $("paymentStatus").value = "未收款";
+  $("quantity").value = "1";
   $("saveBtn").textContent = "＋ 新增資料";
 }
 form.addEventListener("submit", e => {
@@ -352,6 +361,7 @@ form.addEventListener("submit", e => {
     company: $("company").value.trim(),
     address: $("address").value.trim(),
     item: $("item").value.trim(),
+    quantity: $("quantity").value || "1",
     amount: $("amount").value,
     appointment: $("appointment").value,
     projectStatus: $("projectStatus").value,
@@ -379,6 +389,7 @@ window.editRecord = id => {
   $("company").value = r.company || "";
   $("address").value = r.address || "";
   $("item").value = r.item;
+  $("quantity").value = r.quantity || "1";
   $("amount").value = r.amount || "";
   $("appointment").value = r.appointment;
   $("projectStatus").value = r.projectStatus || "待聯絡";
@@ -405,12 +416,12 @@ $("exportBtn").addEventListener("click", async () => {
   }
 
   const headers = [
-    "客戶名字","聯絡方式","公司名稱","工程地址","品項","金額",
+    "客戶名字","聯絡方式","公司名稱","工程地址","品項","數量","金額",
     "預約時間","工程狀態","收款狀態","備註"
   ];
 
   const rows = records.map(r => [
-    r.customerName,r.contact,r.company,r.address,r.item,r.amount,
+    r.customerName,r.contact,r.company,r.address,r.item,r.quantity || "1",r.amount,
     r.appointment,r.projectStatus,r.paymentStatus,r.note
   ]);
 
