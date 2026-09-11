@@ -102,20 +102,6 @@
     .wrap{padding-top:20px}
     .actions button{flex:1}
   }
-
-  .csv-modal{
-    display:none;position:fixed;inset:0;background:rgba(17,24,39,.48);
-    z-index:9999;align-items:center;justify-content:center;padding:18px;
-  }
-  .csv-dialog{
-    width:min(560px,100%);background:#fff;border-radius:18px;padding:20px;
-    box-shadow:0 20px 60px rgba(0,0,0,.2);
-  }
-  .csv-dialog h3{margin:0 0 8px;font-size:20px}
-  .csv-dialog p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.6}
-  .csv-dialog textarea{height:150px;font-size:12px;margin-bottom:12px}
-  .csv-dialog .actions{margin-top:0}
-
 </style>
 
 <meta name="theme-color" content="#6f6257">
@@ -223,7 +209,7 @@
       <div class="actions">
         <button class="btn-primary" type="submit" id="saveBtn">＋ 新增資料</button>
         <button class="btn-light" type="button" id="resetBtn">清除欄位</button>
-        <button class="btn-export" type="button" id="exportBtn">匯出 CSV</button>
+        <button class="btn-export" type="button" id="exportBtn">匯出 PDF</button>
       </div>
     </form>
   </div>
@@ -429,72 +415,126 @@ $("exportBtn").addEventListener("click", () => {
     return;
   }
 
-  const headers = [
-    "客戶名字","聯絡方式","公司名稱","工程地址","品項","數量","金額",
-    "預約時間","工程狀態","收款狀態","備註"
-  ];
+  const reportRows = records.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${esc(r.customerName)}</td>
+      <td>${esc(r.contact)}</td>
+      <td>${esc(r.company || "-")}</td>
+      <td>${esc(r.address || "-")}</td>
+      <td>${esc(r.item)}</td>
+      <td>${esc(r.quantity || "1")}</td>
+      <td>${formatMoney(r.amount)}</td>
+      <td>${formatDate(r.appointment)}</td>
+      <td>${esc(r.projectStatus || "-")}</td>
+      <td>${esc(r.paymentStatus || "-")}</td>
+      <td>${esc(r.note || "-")}</td>
+    </tr>
+  `).join("");
 
-  const rows = records.map(r => [
-    r.customerName,r.contact,r.company,r.address,r.item,r.quantity || "1",r.amount,
-    r.appointment,r.projectStatus,r.paymentStatus,r.note
-  ]);
+  const totalAmount = records.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
-  const csv = "\uFEFF" + [headers,...rows]
-    .map(row => row.map(v => `"${String(v ?? "").replaceAll('"','""')}"`).join(","))
-    .join("\n");
-
-  // Store CSV text for the modal buttons.
-  window.__engineeringCsv = csv;
-  $("csvText").value = csv;
-  $("csvModal").style.display = "flex";
-});
-
-$("closeCsvModal").addEventListener("click", () => {
-  $("csvModal").style.display = "none";
-});
-
-$("copyCsvBtn").addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(window.__engineeringCsv || "");
-    alert("CSV 資料已複製，可以貼到 Excel、Numbers 或 Google 試算表。");
-  } catch (e) {
-    $("csvText").select();
-    document.execCommand("copy");
-    alert("CSV 資料已複製。");
+  const report = `
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程聯絡資料</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    color: #222;
+    background: white;
   }
-});
-
-$("saveCsvBtn").addEventListener("click", () => {
-  const csv = window.__engineeringCsv || "";
-  if(!csv) return;
-
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
-
-  // Open the generated CSV in this web app instead of invoking iOS share sheet.
-  // User can then use Safari's normal Save to Files if desired.
-  const w = window.open(url, "_blank");
-  if(!w){
-    location.href = url;
+  .report { padding: 8px; }
+  h1 { margin: 0 0 5px; font-size: 22px; }
+  .meta { font-size: 12px; color: #666; margin-bottom: 14px; }
+  .summary {
+    display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
   }
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  .summary div {
+    border: 1px solid #ddd; border-radius: 8px; padding: 7px 10px; font-size: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 9px;
+  }
+  th, td {
+    border: 1px solid #d9d9d9;
+    padding: 5px;
+    vertical-align: top;
+    word-break: break-word;
+  }
+  th {
+    background: #f2f2f2;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  tr { page-break-inside: avoid; }
+  .footer {
+    margin-top: 10px;
+    font-size: 10px;
+    color: #777;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+  <div class="report">
+    <h1>工程聯絡管理報表</h1>
+    <div class="meta">匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+    <div class="summary">
+      <div>總工程數：<strong>${records.length}</strong></div>
+      <div>施工中：<strong>${records.filter(r => r.projectStatus === "施工中").length}</strong></div>
+      <div>已完成：<strong>${records.filter(r => r.projectStatus === "已完成").length}</strong></div>
+      <div>總金額：<strong>${formatMoney(totalAmount)}</strong></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>客戶</th>
+          <th>聯絡方式</th>
+          <th>公司</th>
+          <th>工程地址</th>
+          <th>品項</th>
+          <th>數量</th>
+          <th>金額</th>
+          <th>預約時間</th>
+          <th>工程狀態</th>
+          <th>收款狀態</th>
+          <th>備註</th>
+        </tr>
+      </thead>
+      <tbody>${reportRows}</tbody>
+    </table>
+    <div class="footer">工程聯絡管理</div>
+  </div>
+<script>
+  window.onload = function(){
+    setTimeout(function(){ window.print(); }, 350);
+  };
+<\/script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if(!win){
+    alert("無法開啟 PDF 預覽，請允許此網站開啟新視窗後再試一次。");
+    return;
+  }
+  win.document.open();
+  win.document.write(report);
+  win.document.close();
 });
 
 render();
 </script>
-
-<div class="csv-modal" id="csvModal">
-  <div class="csv-dialog">
-    <h3>CSV 已產生</h3>
-    <p>不會自動叫出其他 App。你可以直接複製資料，或按「開啟 CSV」後再自行儲存。</p>
-    <textarea id="csvText" readonly></textarea>
-    <div class="actions">
-      <button type="button" class="btn-primary" id="copyCsvBtn">複製 CSV 資料</button>
-      <button type="button" class="btn-export" id="saveCsvBtn">開啟 CSV</button>
-      <button type="button" class="btn-light" id="closeCsvModal">關閉</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
